@@ -5,6 +5,9 @@ import {Telegraf, Markup} from "telegraf";
 import {formatNumber} from "./utils.js";
 import {Config} from "./config.js";
 
+const sleep = ms => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
 const bot = new Telegraf(Config.BOT_API_TOKEN);
 const ws = new WebSocket(Config.WEBSOCKET_CONNECTION);
 const web3 = new Connection(Config.CONNECTION);
@@ -20,7 +23,7 @@ ws.onopen = () => {
       params: [
         {mentions: [Config.PROGRAM_ID]},
         {
-          commitment: "processed",
+          commitment: "confirmed",
           maxSupportedTransactionVersion: 0,
           encoding: "jsonParsed",
         },
@@ -39,6 +42,9 @@ ws.on("message", evt => {
   }
 });
 
+ws.on('error', evt =>{
+  console.log('websocket error', evt)
+})
 function parseLogs(buffer) {
   if (buffer.params === undefined) {
     return;
@@ -58,8 +64,9 @@ function parseLogs(buffer) {
 
 
 async function getTokenMint(signature) {
-  console.log(signature);
   try {
+    let mint;
+    let mintFound = false
     const transaction = await web3.getParsedTransaction(
       signature,
       {
@@ -71,23 +78,54 @@ async function getTokenMint(signature) {
     if (transaction && transaction.transaction) {
       transaction.transaction.message.instructions.forEach(
         async instruction => {
+          let processed = false;
+          //console.log(instruction);
           if (
-            instruction.program ===
+            !processed &&
+            instruction.program == "spl-token" &&
+            instruction.parsed.type !== undefined
+          ) {
+            if (
+              instruction.parsed.type ===
+                "initializeMint" ||
+              instruction.parsed.type === "initializeMint2"
+            ) {
+              let instructions = instruction.parsed.info;
+              if (instructions.decimals === 0) {
+                //Possible Nft
+                console.log("non fungible token detected");
+                return;
+              } else {
+                // send to get token info
+                mint = instructions.mint
+                mintFound = true
+              }
+            }
+          } else if (
+            instruction.program ==
               "spl-associated-token-account" &&
+            instruction.parsed.type !== undefined &&
             instruction.parsed.info &&
             instruction.parsed.info.tokenProgram ===
               "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
           ) {
-            await getTokenMeta(
-              new PublicKey(instruction.parsed.info.mint),
-              signature
-            );
+            //Possibly a token
+            mint = instruction.parsed.info.mint
+            mintFound = true
+            
           }
         }
       );
     }
+    if(mintFound){
+      console.log(mint)
+      await getTokenMeta(mint,signature)
+      return
+    }
   } catch (err) {
-    console.log(err, "While fetching token data");
+    console.log(err, "SOLANA JSON RPC ERROR");
+    await getTokenMint(signature);
+    return;
   }
 }
 
@@ -96,7 +134,8 @@ async function getTokenSupply(mint) {
   return supply.value.uiAmount;
 }
 
-async function getTokenMeta(mint, signature) {
+async function getTokenMeta(mintAddress, signature) {
+  let mint = new PublicKey(mintAddress);
   let name;
   let symbol;
   let info;
@@ -123,22 +162,25 @@ async function getTokenMeta(mint, signature) {
       ? token.updateAuthorityAddress
       : undefined;
     let tokenSupply = await getTokenSupply(mint);
-    if (tokenSupply < 1000){
-      return
-    }else{
-      supply = formatNumber(tokenSupply)
+    if (tokenSupply < 1000) {
+      return;
+    } else {
+      supply = formatNumber(tokenSupply);
     }
-    let msg = `🌚 New Token Mint\n\n<b>${name}   ««${symbol}»»</b>\n\n👉 <b>${supply}</b> Minted\n\nOwner: <code>${authority}</code>\n\n${info}\n\n🆕 <code>${mint}</code>`;
-    const keyboards = [[
-      Markup.button.url(
-        "solscan",
-        `https://solscan.io/tx/${signature}`
-      ),
-      Markup.button.url(
-        `❤️ Token`,
-        `https://solscan.io/token/${mint.toString()}`
-      ),
-    ]]
+
+    let msg = `🌚 New Token Mint\n\n<b>«« ${name}   (${symbol})  »»</b>\n\n👉 <b>${supply}</b> Minted\n\nOwner: <code>${authority}</code>\n\n${info}\n\n🆕 <code>${mint}</code>`;
+    const keyboards = [
+      [
+        Markup.button.url(
+          "solscan",
+          `https://solscan.io/tx/${signature}`
+        ),
+        Markup.button.url(
+          `❤️ Token`,
+          `https://solscan.io/token/${mint.toString()}`
+        ),
+      ],
+    ];
     if (logo) {
       await bot.telegram.sendPhoto(
         Config.TELEGRAM_CHAT_ID,
@@ -147,7 +189,7 @@ async function getTokenMeta(mint, signature) {
           caption: msg,
           parse_mode: "HTML",
           reply_markup: {
-            inline_keyboard: keyboards ,
+            inline_keyboard: keyboards,
           },
         }
       );
@@ -159,13 +201,15 @@ async function getTokenMeta(mint, signature) {
       {
         parse_mode: "HTML",
         reply_markup: {
-          inline_keyboard:keyboards,
+          inline_keyboard: keyboards,
         },
       }
     );
     return;
-  } catch (err) {
-    console.log(err, "metaplex not fetching token");
+  } catch (e) {
+    console.log("metaplex not fetching token", e);
+    await sleep(20000);
+    await getTokenMeta(mintAddress);
   }
 }
 
