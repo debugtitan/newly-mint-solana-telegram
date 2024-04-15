@@ -45,6 +45,12 @@ ws.on("message", evt => {
 ws.on('error', evt =>{
   console.log('websocket error', evt)
 })
+
+ws.onerror = function(evt){
+  console.log('web socket unexpectedly closed')
+}
+
+
 function parseLogs(buffer) {
   if (buffer.params === undefined) {
     return;
