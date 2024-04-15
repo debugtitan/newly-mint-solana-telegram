@@ -23,7 +23,7 @@ ws.onopen = () => {
       params: [
         {mentions: [Config.PROGRAM_ID]},
         {
-          commitment: "confirmed",
+          commitment: "processed",
           maxSupportedTransactionVersion: 0,
           encoding: "jsonParsed",
         },
@@ -42,9 +42,6 @@ ws.on("message", evt => {
   }
 });
 
-ws.on('error', evt =>{
-  console.log('websocket error', evt)
-})
 
 ws.onerror = function(evt){
   console.log('web socket unexpectedly closed')
@@ -71,8 +68,6 @@ function parseLogs(buffer) {
 
 async function getTokenMint(signature) {
   try {
-    let mint;
-    let mintFound = false
     const transaction = await web3.getParsedTransaction(
       signature,
       {
@@ -84,50 +79,20 @@ async function getTokenMint(signature) {
     if (transaction && transaction.transaction) {
       transaction.transaction.message.instructions.forEach(
         async instruction => {
-          let processed = false;
-          //console.log(instruction);
-          if (
-            !processed &&
-            instruction.program == "spl-token" &&
-            instruction.parsed.type !== undefined
-          ) {
-            if (
-              instruction.parsed.type ===
-                "initializeMint" ||
-              instruction.parsed.type === "initializeMint2"
-            ) {
-              let instructions = instruction.parsed.info;
-              if (instructions.decimals === 0) {
-                //Possible Nft
-                console.log("non fungible token detected");
-                return;
-              } else {
-                // send to get token info
-                mint = instructions.mint
-                mintFound = true
-              }
+              
+          if(instruction.parsed && instruction.parsed.type){
+            if(instruction.parsed.type == 'InitializeMint' || instruction.parsed.type == 'InitializeMint2' ||instruction.parsed.type == 'initializeMint' ||instruction.parsed.type == 'initializeMint2'){
+              console.log(instruction.parsed,signature)
+              await getTokenMeta(instruction.parsed.info.mint)
             }
-          } else if (
-            instruction.program ==
-              "spl-associated-token-account" &&
-            instruction.parsed.type !== undefined &&
-            instruction.parsed.info &&
-            instruction.parsed.info.tokenProgram ===
-              "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          ) {
-            //Possibly a token
-            mint = instruction.parsed.info.mint
-            mintFound = true
             
+          }else{
+            console.log(instruction)
           }
         }
       );
     }
-    if(mintFound){
-      console.log(mint)
-      await getTokenMeta(mint,signature)
-      return
-    }
+    
   } catch (err) {
     console.log(err, "SOLANA JSON RPC ERROR");
     await getTokenMint(signature);
