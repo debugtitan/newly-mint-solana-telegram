@@ -86,8 +86,6 @@ async function getTokenMint(signature) {
               await getTokenMeta(instruction.parsed.info.mint)
             }
             
-          }else{
-            console.log(instruction)
           }
         }
       );
