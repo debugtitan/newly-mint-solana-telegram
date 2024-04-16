@@ -1,19 +1,20 @@
-import {Connection, PublicKey} from "@solana/web3.js";
-import {Metaplex} from "@metaplex-foundation/js";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { Metaplex } from "@metaplex-foundation/js";
 import WebSocket from "ws";
-import {Telegraf, Markup} from "telegraf";
-import {formatNumber} from "./utils.js";
-import {Config} from "./config.js";
+import { Telegraf, Markup } from "telegraf";
+import { formatNumber } from "./utils.js";
+import { Config } from "./config.js";
 
 const sleep = ms => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 const bot = new Telegraf(Config.BOT_API_TOKEN);
 const ws = new WebSocket(Config.WEBSOCKET_CONNECTION);
+const solanaConnection = new Connection(Config.RPC_CONNECTION, { wsEndpoint: Config.WEBSOCKET_CONNECTION });
 const web3 = new Connection(Config.CONNECTION);
 const metaplex = Metaplex.make(web3);
 
-ws.onopen = () => {
+/*ws.onopen = () => {
   ws.send(
     JSON.stringify({
       jsonrpc: "2.0",
@@ -21,9 +22,9 @@ ws.onopen = () => {
       method: "logsSubscribe",
 
       params: [
-        {mentions: [Config.PROGRAM_ID]},
+        { mentions: [Config.PROGRAM_ID] },
         {
-          commitment: "processed",
+          commitment: "completed",
           maxSupportedTransactionVersion: 0,
           encoding: "jsonParsed",
         },
@@ -43,7 +44,7 @@ ws.on("message", evt => {
 });
 
 
-ws.onerror = function(evt){
+ws.onerror = function (evt) {
   console.log('web socket unexpectedly closed')
 }
 
@@ -64,37 +65,77 @@ function parseLogs(buffer) {
     }
   }
 }
+*/
+
+
+const startEvent = () => {
+  solanaConnection.onLogs(
+    Config.PROGRAM_ID,
+    async ({ logs, err, signature }) => {
+      if (logs && logs.some(log => log.includes("initializeMint"))) {
+        await getTokenMint(signature)
+        console.log("initializeMint", signature)
+
+
+      } else if (logs && logs.some(log => log.includes("InitializeMint"))) {
+        await getTokenMint(signature)
+        console.log("InitializeMint", signature)
+
+      }
+      else if (logs && logs.some(log => log.includes("InitializeMint2"))) {
+        await getTokenMint(signature)
+        console.log("InitializeMint2", signature)
+
+      }
+      else if (logs && logs.some(log => log.includes("initializeMint2"))) {
+        await getTokenMint(signature)
+        console.log("initializeMint2", signature)
+
+      }
+    },
+    "confirmed"
+  )
+};
 
 
 async function getTokenMint(signature) {
+  await sleep(30000)
   try {
     const transaction = await web3.getParsedTransaction(
       signature,
       {
         maxSupportedTransactionVersion: 0,
-        commitment: "confirmed",
       }
     );
-
     if (transaction && transaction.transaction) {
-      transaction.transaction.message.instructions.forEach(
-        async instruction => {
-              
-          if(instruction.parsed && instruction.parsed.type){
-            if(instruction.parsed.type == 'InitializeMint' || instruction.parsed.type == 'InitializeMint2' ||instruction.parsed.type == 'initializeMint' ||instruction.parsed.type == 'initializeMint2'){
-              console.log(instruction.parsed,signature)
-              await getTokenMeta(instruction.parsed.info.mint)
-            }
-            
-          }
+      transaction.transaction.message.instructions.forEach(async (instruction) => {
+        // Further logic to verify if this instruction is a token creation
+        if (instruction.parsed.type == "initializeMint") {
+          await getTokenMeta(
+            instruction.parsed.info.mint,signature
+          );
+        } else if (instruction.parsed.type == "InitializeMint") {
+          await getTokenMeta(
+            instruction.parsed.info.mint,signature
+          );
+        } else if (instruction.parsed.type == "initializeMint2") {
+          await getTokenMeta(
+            instruction.parsed.info.mint,signature
+          );
         }
-      );
+        else if (instruction.parsed.type == "InitializeMint2") {
+          await getTokenMeta(
+            instruction.parsed.info.mint,signature
+          );
+        }
+
+      });
     }
-    
+
   } catch (err) {
-    console.log(err, "SOLANA JSON RPC ERROR");
+    console.log('err', signature, err)
+    await sleep(40000)
     await getTokenMint(signature);
-    return;
   }
 }
 
@@ -116,7 +157,7 @@ async function getTokenMeta(mintAddress, signature) {
   try {
     const token = await metaplex
       .nfts()
-      .findByMint({mintAddress: mint});
+      .findByMint({ mintAddress: mint });
 
     name = token.json.name ? token.json.name : "";
     symbol = token.json.symbol ? token.json.symbol : "";
@@ -131,23 +172,20 @@ async function getTokenMeta(mintAddress, signature) {
       ? token.updateAuthorityAddress
       : undefined;
     let tokenSupply = await getTokenSupply(mint);
-    if (tokenSupply < 1000) {
-      return;
-    } else {
-      supply = formatNumber(tokenSupply);
+    supply = formatNumber(tokenSupply);
+    if (token.mint.decimals === 0 ){
+      console.log("Token decimals is 0, maybe nft??")
+      return
     }
+    
 
-    let msg = `🌚 New Token Mint\n\n<b>«« ${name}   (${symbol})  »»</b>\n\n👉 <b>${supply}</b> Minted\n\nOwner: <code>${authority}</code>\n\n${info}\n\n🆕 <code>${mint}</code>`;
+    let msg = `🌚 New  Mint\n\n${name}   (${symbol})\n\n👉 ${supply} Minted\n\nOwner: <code>${authority}</code>\n\n${info}\n\n🆕 <code>${mint}</code>`;
     const keyboards = [
       [
         Markup.button.url(
           "solscan",
           `https://solscan.io/tx/${signature}`
-        ),
-        Markup.button.url(
-          `❤️ Token`,
-          `https://solscan.io/token/${mint.toString()}`
-        ),
+        )
       ],
     ];
     if (logo) {
@@ -182,3 +220,4 @@ async function getTokenMeta(mintAddress, signature) {
   }
 }
 
+startEvent()
