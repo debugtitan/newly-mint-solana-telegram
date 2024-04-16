@@ -110,7 +110,7 @@ async function getTokenMint(signature) {
     if (transaction && transaction.transaction) {
       transaction.transaction.message.instructions.forEach(async (instruction) => {
         // Further logic to verify if this instruction is a token creation
-        if(instruction.parsed.type){
+        if(instruction.parsed && instruction.parsed.type){
           if (instruction.parsed.type == "initializeMint") {
             await getTokenMeta(
               instruction.parsed.info.mint,signature
@@ -137,8 +137,11 @@ async function getTokenMint(signature) {
     console.log('err', signature, err)
     await sleep(40000)
     await getTokenMint(signature);
+    return
   }
 }
+
+
 
 async function getTokenSupply(mint) {
   let supply = await web3.getTokenSupply(mint);
