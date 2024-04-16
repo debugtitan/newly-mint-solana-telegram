@@ -110,25 +110,26 @@ async function getTokenMint(signature) {
     if (transaction && transaction.transaction) {
       transaction.transaction.message.instructions.forEach(async (instruction) => {
         // Further logic to verify if this instruction is a token creation
-        if (instruction.parsed.type == "initializeMint") {
-          await getTokenMeta(
-            instruction.parsed.info.mint,signature
-          );
-        } else if (instruction.parsed.type == "InitializeMint") {
-          await getTokenMeta(
-            instruction.parsed.info.mint,signature
-          );
-        } else if (instruction.parsed.type == "initializeMint2") {
-          await getTokenMeta(
-            instruction.parsed.info.mint,signature
-          );
+        if(instruction.parsed.type){
+          if (instruction.parsed.type == "initializeMint") {
+            await getTokenMeta(
+              instruction.parsed.info.mint,signature
+            );
+          } else if (instruction.parsed.type == "InitializeMint") {
+            await getTokenMeta(
+              instruction.parsed.info.mint,signature
+            );
+          } else if (instruction.parsed.type == "initializeMint2") {
+            await getTokenMeta(
+              instruction.parsed.info.mint,signature
+            );
+          }
+          else if (instruction.parsed.type == "InitializeMint2") {
+            await getTokenMeta(
+              instruction.parsed.info.mint,signature
+            );
+          }
         }
-        else if (instruction.parsed.type == "InitializeMint2") {
-          await getTokenMeta(
-            instruction.parsed.info.mint,signature
-          );
-        }
-
       });
     }
 
