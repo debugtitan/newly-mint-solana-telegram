@@ -99,7 +99,7 @@ const startEvent = () => {
 
 
 async function getTokenMint(signature) {
-  await sleep(30000)
+  await sleep(10000)
   try {
     const transaction = await web3.getParsedTransaction(
       signature,
@@ -128,6 +128,8 @@ async function getTokenMint(signature) {
             await getTokenMeta(
               instruction.parsed.info.mint,signature
             );
+          }else{
+            //console.log(instruction.parsed)
           }
         }
       });
@@ -149,6 +151,7 @@ async function getTokenSupply(mint) {
 }
 
 async function getTokenMeta(mintAddress, signature) {
+  console.log(mintAddress)
   let mint = new PublicKey(mintAddress);
   let name;
   let symbol;
@@ -183,11 +186,11 @@ async function getTokenMeta(mintAddress, signature) {
     }
     
 
-    let msg = `🌚 New  Mint\n\n${name}   (${symbol})\n\n👉 ${supply} Minted\n\nOwner: <code>${authority}</code>\n\n${info}\n\n🆕 <code>${mint}</code>`;
+    let msg = `New  Mint » <a href="https://solscan.io/token/${mintAddress}">${name}</a>\n\n<code>${mint}</code>\n\n👉 ${supply} Minted\n\nOwner: <a href="https://solscan.io/account/${authority}">Deployer</a>\n\nChart: <a href="https://birdeye.so/token/${mint}">${name} (${symbol}) » Birdeye</a>`;
     const keyboards = [
       [
         Markup.button.url(
-          "solscan",
+          "Trade on soltrader",
           `https://solscan.io/tx/${signature}`
         )
       ],
@@ -199,9 +202,9 @@ async function getTokenMeta(mintAddress, signature) {
         {
           caption: msg,
           parse_mode: "HTML",
-          reply_markup: {
+          /*reply_markup: {
             inline_keyboard: keyboards,
-          },
+          },*/
         }
       );
       return;
@@ -211,16 +214,16 @@ async function getTokenMeta(mintAddress, signature) {
       msg,
       {
         parse_mode: "HTML",
-        reply_markup: {
+        /*reply_markup: {
           inline_keyboard: keyboards,
-        },
+        },*/
       }
     );
     return;
   } catch (e) {
     console.log("metaplex not fetching token", e);
     await sleep(20000);
-    await getTokenMeta(mintAddress);
+    //await getTokenMeta(mintAddress);
   }
 }
 
