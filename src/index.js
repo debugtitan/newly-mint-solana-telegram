@@ -9,127 +9,68 @@ const sleep = ms => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 const bot = new Telegraf(Config.BOT_API_TOKEN);
-const ws = new WebSocket(Config.WEBSOCKET_CONNECTION);
 const solanaConnection = new Connection(Config.RPC_CONNECTION, { wsEndpoint: Config.WEBSOCKET_CONNECTION });
 const web3 = new Connection(Config.CONNECTION);
 const metaplex = Metaplex.make(web3);
 
-/*ws.onopen = () => {
-  ws.send(
-    JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "logsSubscribe",
-
-      params: [
-        { mentions: [Config.PROGRAM_ID] },
-        {
-          commitment: "completed",
-          maxSupportedTransactionVersion: 0,
-          encoding: "jsonParsed",
-        },
-      ],
-    })
-  );
-};
-
-ws.on("message", evt => {
-  try {
-    const buffer = evt.toString("utf8");
-    parseLogs(JSON.parse(buffer));
-    return;
-  } catch (e) {
-    //console.log(e);
-  }
-});
-
-
-ws.onerror = function (evt) {
-  console.log('web socket unexpectedly closed')
-}
-
-
-function parseLogs(buffer) {
-  if (buffer.params === undefined) {
-    return;
-  }
-  const logs = buffer.params.result.value.logs;
-  for (const log of logs) {
-    if (
-      log.includes("InitializeMint") ||
-      log.includes("InitializeMint2") ||
-      log.includes("initializeMint2") ||
-      log.includes("initializeMint")
-    ) {
-      getTokenMint(buffer.params.result.value.signature);
-    }
-  }
-}
-*/
-
-
 const startEvent = () => {
   solanaConnection.onLogs(
     Config.PROGRAM_ID,
-    async ({ logs, err, signature }) => {
+    ({ logs, err, signature }) => {
       if (logs && logs.some(log => log.includes("initializeMint"))) {
-        await getTokenMint(signature)
-        console.log("initializeMint", signature)
-
+        getTokenMint(signature)
 
       } else if (logs && logs.some(log => log.includes("InitializeMint"))) {
-        await getTokenMint(signature)
-        console.log("InitializeMint", signature)
-
+        getTokenMint(signature)
       }
       else if (logs && logs.some(log => log.includes("InitializeMint2"))) {
-        await getTokenMint(signature)
-        console.log("InitializeMint2", signature)
+        getTokenMint(signature)
 
       }
       else if (logs && logs.some(log => log.includes("initializeMint2"))) {
-        await getTokenMint(signature)
-        console.log("initializeMint2", signature)
+        getTokenMint(signature)
 
       }
     },
-    "confirmed"
+    'confirmed'
   )
 };
 
 
 async function getTokenMint(signature) {
-  await sleep(10000)
   try {
+    await sleep(30000)
     const transaction = await web3.getParsedTransaction(
       signature,
       {
         maxSupportedTransactionVersion: 0,
       }
     );
+    //console.log(transaction,signature)
     if (transaction && transaction.transaction) {
-      transaction.transaction.message.instructions.forEach(async (instruction) => {
+      transaction.transaction.message.instructions.forEach(instruction => {
         // Further logic to verify if this instruction is a token creation
         if(instruction.parsed && instruction.parsed.type){
           if (instruction.parsed.type == "initializeMint") {
-            await getTokenMeta(
+            console.log(instruction.parsed.info)
+            getTokenMeta(
               instruction.parsed.info.mint,signature
             );
           } else if (instruction.parsed.type == "InitializeMint") {
-            await getTokenMeta(
+            getTokenMeta(
               instruction.parsed.info.mint,signature
             );
           } else if (instruction.parsed.type == "initializeMint2") {
-            await getTokenMeta(
+            getTokenMeta(
               instruction.parsed.info.mint,signature
             );
           }
           else if (instruction.parsed.type == "InitializeMint2") {
-            await getTokenMeta(
+            getTokenMeta(
               instruction.parsed.info.mint,signature
             );
           }else{
-            //console.log(instruction.parsed)
+            console.log(instruction.parsed)
           }
         }
       });
@@ -137,8 +78,8 @@ async function getTokenMint(signature) {
 
   } catch (err) {
     console.log('err', signature, err)
-    await sleep(40000)
-    await getTokenMint(signature);
+    await sleep(20000)
+    getTokenMint(signature);
     return
   }
 }
@@ -186,7 +127,7 @@ async function getTokenMeta(mintAddress, signature) {
     }
     
 
-    let msg = `New  Mint » <a href="https://solscan.io/token/${mintAddress}">${name}</a>\n\n<code>${mint}</code>\n\n👉 ${supply} Minted\n\nOwner: <a href="https://solscan.io/account/${authority}">Deployer</a>\n\nChart: <a href="https://birdeye.so/token/${mint}">${name} (${symbol}) » Birdeye</a>`;
+    let msg = `New  Mint » <a href="https://solscan.io/token/${mintAddress}">${name}</a>\n\n<code>${mint}</code>\n\n👉 ${supply} Minted\n\nOwner: <a href="https://solscan.io/account/${authority}">Deployer</a>\n\nChart: <a href="https://birdeye.so/token/${mint}">${name} (${symbol}) » Birdeye</a>\n\n${info}`;
     const keyboards = [
       [
         Markup.button.url(
