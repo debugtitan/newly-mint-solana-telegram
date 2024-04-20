@@ -160,7 +160,7 @@ class TokenMintScanner {
       authority = token.updateAuthorityAddress.toString()
         ? token.updateAuthorityAddress
         : "";
-      let tokenSupply = await getTokenSupply(mint);
+      let tokenSupply = await this.getTokenSupply(mint);
       supply = formatNumber(tokenSupply);
       if (token.mint.decimals === 0) {
         //Token decimals is 0, maybe nft??
@@ -172,7 +172,7 @@ class TokenMintScanner {
         [
           Markup.button.url(
             "",
-            `https://explorer.solana.com/tx/${signature}`
+            `https://explorer.solana.com/tx/${this.signature}`
           )
         ],
       ];
@@ -183,9 +183,9 @@ class TokenMintScanner {
           {
             caption: msg,
             parse_mode: "HTML",
-            /*reply_markup: {
+            reply_markup: {
               inline_keyboard: keyboards,
-            },*/
+            },
           }
         );
         return;
@@ -195,9 +195,9 @@ class TokenMintScanner {
         msg,
         {
           parse_mode: "HTML",
-          /*reply_markup: {
+          reply_markup: {
             inline_keyboard: keyboards,
-          },*/
+          },
         }
       );
       return;
