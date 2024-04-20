@@ -81,7 +81,7 @@ class TokenMintScanner {
       }
       await this.sleep(15000)
       const transaction = await this.connection.getParsedTransaction(
-        signature,
+        this.signature,
         {
           maxSupportedTransactionVersion: 0,
         }
@@ -92,20 +92,20 @@ class TokenMintScanner {
           if (instruction.parsed && instruction.parsed.type) {
             if (instruction.parsed.type == "initializeMint") {
               this.getTokenMeta(
-                instruction.parsed.info.mint, signature
+                instruction.parsed.info.mint
               );
             } else if (instruction.parsed.type == "InitializeMint") {
               this.getTokenMeta(
-                instruction.parsed.info.mint, signature
+                instruction.parsed.info.mint
               );
             } else if (instruction.parsed.type == "initializeMint2") {
               this.getTokenMeta(
-                instruction.parsed.info.mint, signature
+                instruction.parsed.info.mint
               );
             }
             else if (instruction.parsed.type == "InitializeMint2") {
               this.getTokenMeta(
-                instruction.parsed.info.mint, signature
+                instruction.parsed.info.mint
               );
             }
           }
@@ -113,7 +113,7 @@ class TokenMintScanner {
       }
 
     } catch (err) {
-      console.log("eror", this.RETRIES,this.signature)
+      console.log("error", this.RETRIES,this.signature,err)
       //wait for 5secs
       await this.sleep(5000)
       // Increment tries
