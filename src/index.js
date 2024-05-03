@@ -10,6 +10,7 @@ const solanaConnection = new Connection(Config.RPC_CONNECTION, { wsEndpoint: Con
 
 
 const startEvent = () => {
+  console.log("Websocket Started Bruh")
   solanaConnection.onLogs(
     Config.PROGRAM_ID,
     ({ logs, err, signature }) => {
@@ -18,6 +19,7 @@ const startEvent = () => {
         scanner.getTokenMint()
 
       } else if (logs && logs.some(log => log.includes("InitializeMint"))) {
+        //console.log('Mint',signature)
         let scanner = new TokenMintScanner(signature)
         scanner.getTokenMint()
       }
@@ -32,7 +34,7 @@ const startEvent = () => {
 
       }
     },
-    'confirmed'
+    'processed'
   )
 };
 
@@ -79,15 +81,17 @@ class TokenMintScanner {
         //we can't continue if rpc error
         return
       }
-      await this.sleep(15000)
+      await this.sleep(25000)
       const transaction = await this.connection.getParsedTransaction(
         this.signature,
         {
           maxSupportedTransactionVersion: 0,
         }
       );
+      console.log(transaction)
       if (transaction && transaction.transaction) {
         transaction.transaction.message.instructions.forEach(instruction => {
+          console.log(instruction)
           // logic to verify if this instruction is a token creation
           if (instruction.parsed && instruction.parsed.type) {
             if (instruction.parsed.type == "initializeMint") {
@@ -115,7 +119,7 @@ class TokenMintScanner {
     } catch (err) {
       console.log("error", this.RETRIES,this.signature,err)
       //wait for 5secs
-      await this.sleep(5000)
+      await this.sleep(2000)
       // Increment tries
       this.RETRIES++;
       //retry mint 
@@ -167,12 +171,12 @@ class TokenMintScanner {
         return
       }
   
-      let msg = `New  Mint » <a href="https://explorer.solana.com/token/${mintAddress}">${name}</a>\n\n<code>${mint}</code>\n\n👉 ${supply} Minted\n\nOwner: <a href="https://explorer.solana.com/account/${authority}">Deployer</a>\n\nChart: <a href="https://birdeye.so/token/${mint}">${name} (${symbol}) » Birdeye</a>\n\n${info}`;
+      let msg = `New  Mint » <a href="https://solscan.io/token/${mintAddress}">${name}</a>\n\n<code>${mint}</code>\n\n👉 ${supply} Minted\n\nOwner: <a href="https://solscan.io/account/${authority}">Deployer</a>\n\nChart: <a href="https://birdeye.so/token/${mint}">${name} (${symbol}) » Birdeye</a>\n\n${info}`;
       const keyboards = [
         [
           Markup.button.url(
-            "",
-            `https://explorer.solana.com/tx/${this.signature}`
+            "solana explorer",
+            `https://solscan.io/tx/${this.signature}`
           )
         ],
       ];
